@@ -1,3 +1,17 @@
+/* Upas Narayan
+   Chemical Equation Balancer Version 1.7
+   Version 1.0 released in January 2011
+   Balancer.java
+*/
+
+/*
+   Android application which balances chemical equations.
+   The algorithm used in this application is linear system equation
+   solving, and is a deterministic method to balance a chemical equation.
+   This application requires no special permissions, and operates completely
+   offline when used on an Android device.
+*/
+
 package com.upas.eqbalancer;
 
 import java.util.ArrayList;
@@ -21,18 +35,25 @@ import android.widget.TextView;
 
 
 public class Balancer extends Activity implements View.OnClickListener {
-	/** Called when the activity is first created. */
+	
+	/* Constants for settings and help menus. */
 	private static final int MENUABOUT = Menu.FIRST;
 	private static final int MENUHELP = Menu.FIRST + 1;
 	private static final int MENUQUIT = Menu.FIRST + 2;
+	
+	/* TextView to store final answer to be displayed. */
 	TextView ans;
+	
+	/* Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 		defaultops();
 	}
-	public void defaultops(){
+	
+	/* Helper method for onCreate() which initializes UI. */
+	private void defaultops() {
 		ans = (TextView)findViewById(R.id.TextView01);
 		ans.setTextColor(Color.CYAN);
 		ans.setTextSize(18);
@@ -44,6 +65,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 		Button b1 = (Button)findViewById(R.id.Button02);
 		b.setOnClickListener(this);
 		b1.setOnClickListener(clearClick);
+		
+		// two separate forms for Portrait/Landscape orientation
 		if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
 			WebView w = (WebView)findViewById(R.id.WebView01);
 			w.loadDataWithBaseURL("file:///android_asset/", "<img src='elements.jpg' />", "text/html", "utf-8", null);
@@ -55,6 +78,10 @@ public class Balancer extends Activity implements View.OnClickListener {
 			b2.setOnClickListener(ptClick);
 		}
 	}
+	
+	/* Handles interation with periodic table shown in Portait orientation.
+	   Initializes the WebView controlling the periodic table.
+	*/
 	public OnClickListener ptClick = new OnClickListener() {
 		public void onClick(View view) {
 			setContentView(R.layout.custom_dialog);
@@ -71,6 +98,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 			});
 		}
 	};
+	
+	/* Clears the answer and the input equation when "Clear" button is clicked. */
 	public OnClickListener clearClick = new OnClickListener() {
 		public void onClick(View view) {
 			EditText equ = (EditText)findViewById(R.id.EditText01);
@@ -79,15 +108,44 @@ public class Balancer extends Activity implements View.OnClickListener {
 			ans.setText("");
 		}
 	};
+	
+	/* Primary method which computes the solution to the input chemical equation.
+	   Computes balanced chemical equation and sets it in the "ans" TextView.
+	*/
 	public void onClick(View view){
+	    
+	    // get equation entered
 		EditText equ = (EditText)findViewById(R.id.EditText01);
-		String equation = equ.getText().toString();
-		String equation1 = removeSpaces(equation);
+		String equation = removeSpaces(equ.getText().toString());
+		
+		String balanced = equationBalance(equation);
+		
+		if (final == null) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(this);
+			builder.setTitle("Error!");
+			builder.setMessage("The equation is already balanced or an error occured in computing the balanced equation. Please retype the equation above.");
+			builder.setPositiveButton("Close", null);
+			builder.setCancelable(true);
+			builder.create().show();
+		} else {
+		    ans.setText(balanced);
+		}
+	}
+	
+	/* Primary method that balances an input chemical equation. */
+	private String equationBalance(String equation) {
+	    // initialize reactant and product ArrayLists
 		ArrayList<String> rterms = new ArrayList<String>();
 		ArrayList<String> pterms = new ArrayList<String>();
+		
+		// used for redox equations
 		ArrayList<Double> coeffsr = new ArrayList<Double>();
 		ArrayList<Double> coeffsp = new ArrayList<Double>();
-		try{
+		
+		// enclose all code in a large try/catch to catch all possible errors in equation
+		try {
+		    
+		    // split equation into reactants and products, and convert to arrays of compounds
 			String reactants = equation.substring(0, equation.indexOf("="));
 			String products = equation.substring(equation.indexOf("=") + 1, equation.length());
 			reactants = reactants.trim();
@@ -110,119 +168,28 @@ public class Balancer extends Activity implements View.OnClickListener {
 				pterms.set(i, pterms.get(i).trim());
 				pterms1[i] = pterms.get(i);
 			}
-			boolean isredox = false;
-			for (int i = 0; i < rterms.size(); i++){
-				String x = rterms.get(i);
-				for (int j = 0; j < x.length(); j++){
-					if (j == x.length() - 1 && x.charAt(j) != ']'){
-						coeffsr.add(0.0);
-					}
-					if (x.charAt(j) == '['){
-						isredox = true;
-						int ind = x.indexOf(']');
-						String num = x.substring(j + 1, ind);
-						coeffsr.add(Double.parseDouble(num));
-						x = x.substring(0, j);
-						break;
-					}
-				}
-				rterms.set(i, x);
-			}
-			for (int i = 0; i < pterms.size(); i++){
-				String x = pterms.get(i);
-				for (int j = 0; j < x.length(); j++){
-					if (j == x.length() - 1 && x.charAt(j) != ']'){
-						coeffsp.add(0.0);
-					}
-					if (x.charAt(j) == '['){
-						isredox = true;
-						int ind = x.indexOf(']');
-						String num = x.substring(j + 1, ind);
-						coeffsp.add(Double.parseDouble(num));
-						x = x.substring(0, j);
-						break;
-					}
-				}
-				pterms.set(i, x);
-			}
+			
+			// deal with redox equations
+			boolean isredox = configureRedox(rterms, coeffsr);
+			isredox = configureRedox(pterms, coeffsp);
+			
+			// add "1" subscripts and deal with polyatomic ions
 			addNums(rterms);
 			configureParenthesis(rterms);
 			addNums(pterms);
 			configureParenthesis(pterms);
 			addNums(rterms);
 			addNums(pterms);
-			int count = 0;
-			int size = rterms.size() + pterms.size();
-			String h[] = new String[1000];
+			
+			// equation is now all configured, do pattern matching to extract elements
 			ArrayList <String> elements = new ArrayList<String>();
-			for (int i = 0; i < rterms.size(); i++){
-				Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
-				String comp = rterms.get(i);
-				Matcher m1 = p1.matcher(comp);
-				while (m1.find()) {
-					if (!elements.contains(m1.group(1)))
-					{
-						elements.add(m1.group(1));
-					}
-				}
-				Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
-				Matcher m2 = p2.matcher(comp);
-				while (m2.find()) {
-					if (!elements.contains(m2.group(1) + "" + m2.group(2)))
-					{
-						elements.add(m2.group(1) + "" + m2.group(2));
-					}
-				}
-				Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
-				Matcher m3 = p3.matcher(comp);
-				while (m3.find()) {
-					if (!elements.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3)))
-					{
-						elements.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
-					}
-				}
-			}
-			for (int i = 0; i < pterms.size(); i++){
-				Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
-				String comp = pterms.get(i);
-				Matcher m1 = p1.matcher(comp);
-				while (m1.find()) {
-					if (!elements.contains(m1.group(1)))
-					{
-						elements.add(m1.group(1));
-					}
-				}
-				Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
-				Matcher m2 = p2.matcher(comp);
-				while (m2.find()) {
-					if (!elements.contains(m2.group(1) + "" + m2.group(2)))
-					{
-						elements.add(m2.group(1) + "" + m2.group(2));
-					}
-				}
-				Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
-				Matcher m3 = p3.matcher(comp);
-				while (m3.find()) {
-					if (!elements.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3)))
-					{
-						elements.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
-					}
-				}
-			}
-			for (int i = 0; i < rterms.size(); i++){
-				if (rterms.get(i).length() == 1){
-					String e = rterms.get(i);
-					rterms.set(i, e + "1");
-				}
-			}
-			for (int i = 0; i < pterms.size(); i++){
-				if (pterms.get(i).length() == 1){
-					String e = pterms.get(i);
-					pterms.set(i, e + "1");
-				}
-			}
+			patternMatch(rterms, elements);
+			patternMatch(pterms, elements);
+
+            // initialize matrix m in order to solve system of equations
+            int size = rterms.size() + pterms.size();
+            String h[] = new String[1000];
 			double m[][] = null;
-			int track = 0;
 			int rows = elements.size();
 			if (size > rows){
 				m = new double[size][size];
@@ -251,157 +218,16 @@ public class Balancer extends Activity implements View.OnClickListener {
 					}
 				}
 			}
-			for (int i = 0; i < rterms.size(); i++){
-				ArrayList <String> x = new ArrayList<String>();
-				ArrayList <Integer> y = new ArrayList<Integer>();
-				Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
-				String comp = rterms.get(i);
-				Matcher m1 = p1.matcher(comp);
-				while (m1.find()) {
-					if (x.contains(m1.group(1))){
-						int ind = x.indexOf(m1.group(1));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m1.group(2)));
-					}
-					else
-					{
-						x.add(m1.group(1));
-						y.add(Integer.parseInt(m1.group(2)));
-					}
-				}
-				Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
-				Matcher m2 = p2.matcher(comp);
-				while (m2.find()) {
-					if (x.contains(m2.group(1) + "" + m2.group(2))){
-						int ind = x.indexOf(m2.group(1) + "" + m2.group(2));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m2.group(3)));
-					}
-					else {
-						x.add(m2.group(1) + "" + m2.group(2));
-						y.add(Integer.parseInt(m2.group(3)));
-					}
-				}
-				Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
-				Matcher m3 = p3.matcher(comp);
-				while (m3.find()) {
-					if (x.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3))){
-						int ind = x.indexOf(m3.group(1) + "" + m3.group(2)+ "" + m3.group(3));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m3.group(4)));
-					}
-					else {
-						x.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
-						y.add(Integer.parseInt(m3.group(4)));
-					}
-				}
-				if (i == 0){
-					for (int j = 0; j < y.size(); j++){
-						m[track][i] = y.get(j);
-						track++;
-						h[count] = x.get(j);
-						count++;
-					}
-				}
-				else
-				{
-					boolean b = false;
-					for (int j = 0; j < x.size(); j++){
-						b = false;
-						for (int k = 0; k < h.length; k++){
-							if (x.get(j).equals(h[k])){
-								m[k][i] = y.get(j);
-								b = true;
-							}
-						}
-						if (!b){
-							m[track][i] = y.get(j);
-							track++;
-							h[count] = x.get(j);
-							count++;
-						}
-					}
-				}
-			}
-			for (int i = 0; i < pterms.size(); i++){
-				ArrayList <String> x = new ArrayList<String>();
-				ArrayList <Integer> y = new ArrayList<Integer>();
-				Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
-				String comp = pterms.get(i);
-				Matcher m1 = p1.matcher(comp);
-				while (m1.find()) {
-					if (x.contains(m1.group(1))){
-						int ind = x.indexOf(m1.group(1));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m1.group(2)));
-					}
-					else
-					{
-						x.add(m1.group(1));
-						y.add(Integer.parseInt(m1.group(2)));
-					}
-				}
-				Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
-				Matcher m2 = p2.matcher(comp);
-				while (m2.find()) {
-					if (x.contains(m2.group(1) + "" + m2.group(2))){
-						int ind = x.indexOf(m2.group(1) + "" + m2.group(2));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m2.group(3)));
-					}
-					else {
-						x.add(m2.group(1) + "" + m2.group(2));
-						y.add(Integer.parseInt(m2.group(3)));
-					}
-				}
-				Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
-				Matcher m3 = p3.matcher(comp);
-				while (m3.find()) {
-					if (x.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3))){
-						int ind = x.indexOf(m3.group(1) + "" + m3.group(2)+ "" + m3.group(3));
-						Integer add = y.get(ind);
-						y.set(ind, add + Integer.parseInt(m3.group(4)));
-					}
-					else {
-						x.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
-						y.add(Integer.parseInt(m3.group(4)));
-					}
-				}
-				boolean b = false;
-				for (int j = 0; j < x.size(); j++){
-					b = false;
-					for (int k = 0; k < h.length; k++){
-						if (x.get(j).equals(h[k])){
-							if (i + rterms.size() == m[0].length - 1){
-								m[k][i + rterms.size()] = y.get(j);
-								b = true;
-							}
-							else
-							{
-								m[k][i + rterms.size()] = y.get(j) * -1;
-								b = true;
-							}
-						}
-					}
-					if (!b){
-						if (i + rterms.size() == m[0].length - 1){
-							m[track][i + rterms.size()] = y.get(j);
-							track++;
-							h[count] = x.get(j);
-							count++;
-						}
-						else
-						{
-							m[track][i + rterms.size()] = y.get(j) * -1;
-							track++;
-							h[count] = x.get(j);
-							count++;
-						}
-					}
-				}
-			}
+			
+			// add system of equations to matrix m
+			addToMatrix(rterms, m, h);
+			addToMatrix(pterms, m, h);
+			
+			// perform RREF to solve system of linear equations
 			toRREF(m);
-			ArrayList<Double>coefficients = new ArrayList<Double>();
+			
+			// re-extract balanced equation from solved matrix m
+			ArrayList<Double> coefficients = new ArrayList<Double>();
 			for (int i = 0; i < m[0].length; i++){
 				if (m[i][m[0].length - 1] == 0.0){
 					m[i][m[0].length - 1] = 1.0;
@@ -421,84 +247,231 @@ public class Balancer extends Activity implements View.OnClickListener {
 				elem[i] *= factor;
 				fin[i] = (int)Math.round(elem[i].doubleValue());
 			}
-			String newequ = "";
-			String newequ1 = "";
-			int cou = 0;
-			for (int i = 0; i < rterms1.length; i++){
-				if (fin[cou] == 1){
-					if (i == rterms1.length - 1){
-						newequ += rterms1[i] + " \u2192 ";
-						newequ1 += rterms1[i] + " = ";
-					}
-					else {
-						newequ += rterms1[i] + " + ";
-						newequ1 += rterms1[i] + " + ";
-					}
-					cou++;
-				}
-				else
-				{
-					if (i == rterms1.length - 1){
-						newequ += fin[cou] + rterms1[i] + " \u2192 ";
-						newequ1 += fin[cou] + rterms1[i] + " = ";
-					}
-					else {
-						newequ += fin[cou] + rterms1[i] + " + ";
-						newequ1 += fin[cou] + rterms1[i] + " + ";
-					}
-					cou++;
-				}
-			}
-			for (int i = 0; i < pterms1.length; i++){
-				if (fin[cou] == 1){
-					if (i == pterms1.length - 1) {
-						newequ += pterms1[i];
-						newequ1 += pterms1[i];
-					}
-					else {
-						newequ += pterms1[i] + " + ";
-						newequ1 += pterms1[i] + " + ";
-					}
-					cou++;
-				}
-				else
-				{
-					if (i == pterms1.length - 1){
-						newequ += fin[cou] + pterms1[i];
-						newequ1 += fin[cou] + pterms1[i];
-					}
-					else {
-						newequ += fin[cou] + pterms1[i] + " + ";
-						newequ1 += fin[cou] + pterms1[i] + " + ";
-					}
-					cou++;
-				}
-			}
+			
+			// generate final equation
+			String newequ1 = generateFinalEquation(rterms1, pterms1, fin);
 			String newequ2 = removeSpaces(newequ1);
 			if (newequ2.equals(equation1)){
-				throw new Exception();
+				return null;
 			}
-			ans.setText(newequ);
-		}
-		catch (Exception e){
-			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			builder.setTitle("Error!");
-			builder.setMessage("The equation is already balanced or an error occured in computing the balanced equation. Please retype the equation above.");
-			builder.setPositiveButton("Close", null);
-			builder.setCancelable(true);
-			builder.create().show();
+			return newequ2;
+		} catch(Exception e) {
+		    return null;
 		}
 	}
-	public String removeSpaces(String s) {
-		StringTokenizer st = new StringTokenizer(s," ",false);
-		String t="";
+	
+	/* Generate final balanced equation from solved linear system of equations. */
+	private String generateFinalEquation(String[] rterms1, String[] pterms1, int[] fin) {
+	    int cou = 0;
+	    String newequ = "";
+	    String newequ1 = "";
+		for (int i = 0; i < rterms1.length; i++){
+			if (fin[cou] == 1){
+				if (i == rterms1.length - 1){
+					newequ += rterms1[i] + " \u2192 ";
+					newequ1 += rterms1[i] + " = ";
+				}
+				else {
+					newequ += rterms1[i] + " + ";
+					newequ1 += rterms1[i] + " + ";
+				}
+				cou++;
+			}
+			else
+			{
+				if (i == rterms1.length - 1){
+					newequ += fin[cou] + rterms1[i] + " \u2192 ";
+					newequ1 += fin[cou] + rterms1[i] + " = ";
+				}
+				else {
+					newequ += fin[cou] + rterms1[i] + " + ";
+					newequ1 += fin[cou] + rterms1[i] + " + ";
+				}
+				cou++;
+			}
+		}
+		for (int i = 0; i < pterms1.length; i++){
+			if (fin[cou] == 1){
+				if (i == pterms1.length - 1) {
+					newequ += pterms1[i];
+					newequ1 += pterms1[i];
+				}
+				else {
+					newequ += pterms1[i] + " + ";
+					newequ1 += pterms1[i] + " + ";
+				}
+				cou++;
+			}
+			else
+			{
+				if (i == pterms1.length - 1) {
+					newequ += fin[cou] + pterms1[i];
+					newequ1 += fin[cou] + pterms1[i];
+				}
+				else {
+					newequ += fin[cou] + pterms1[i] + " + ";
+					newequ1 += fin[cou] + pterms1[i] + " + ";
+				}
+				cou++;
+			}
+		}
+		return newequ1;
+	}
+	
+	
+	/* Perform pattern matching to extract elements into output ArrayList. */
+	private void patternMatch(ArrayList<String> terms, ArrayList<String> elements) {
+	    for (int i = 0; i < terms.size(); i++){
+	        // match single uppercase letter, or uppercase with 1 or 2 lowercase
+			Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
+			String comp = rterms.get(i);
+			Matcher m1 = p1.matcher(comp);
+			while (m1.find()) {
+				if (!elements.contains(m1.group(1)))
+				{
+					elements.add(m1.group(1));
+				}
+			}
+			Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
+			Matcher m2 = p2.matcher(comp);
+			while (m2.find()) {
+				if (!elements.contains(m2.group(1) + "" + m2.group(2)))
+				{
+					elements.add(m2.group(1) + "" + m2.group(2));
+				}
+			}
+			Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
+			Matcher m3 = p3.matcher(comp);
+			while (m3.find()) {
+				if (!elements.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3)))
+				{
+					elements.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
+				}
+			}
+			if (rterms.get(i).length() == 1){
+				String e = rterms.get(i);
+				rterms.set(i, e + "1");
+			}
+		}
+
+	}
+	
+	/* Add the terms (either products or reactants) to a matrix m in order to solve the RREF of the
+	   system of linear equations involved in the chemical equation.
+	*/
+	private void addToMatrix(ArrayList<String> terms, double[][] m, String[] h) {
+	    int count = 0;
+	    int track = 0;
+	    for (int i = 0; i < terms.size(); i++){
+			ArrayList <String> x = new ArrayList<String>();
+			ArrayList <Integer> y = new ArrayList<Integer>();
+			Pattern p1 = Pattern.compile("([A-Z])(\\d+)");
+			String comp = terms.get(i);
+			Matcher m1 = p1.matcher(comp);
+			while (m1.find()) {
+				if (x.contains(m1.group(1))){
+					int ind = x.indexOf(m1.group(1));
+					Integer add = y.get(ind);
+					y.set(ind, add + Integer.parseInt(m1.group(2)));
+				}
+				else
+				{
+					x.add(m1.group(1));
+					y.add(Integer.parseInt(m1.group(2)));
+				}
+			}
+			Pattern p2 = Pattern.compile("([A-Z])([a-z])(\\d+)");
+			Matcher m2 = p2.matcher(comp);
+			while (m2.find()) {
+				if (x.contains(m2.group(1) + "" + m2.group(2))){
+					int ind = x.indexOf(m2.group(1) + "" + m2.group(2));
+					Integer add = y.get(ind);
+					y.set(ind, add + Integer.parseInt(m2.group(3)));
+				}
+				else {
+					x.add(m2.group(1) + "" + m2.group(2));
+					y.add(Integer.parseInt(m2.group(3)));
+				}
+			}
+			Pattern p3 = Pattern.compile("([A-Z])([a-z])([a-z])(\\d+)");
+			Matcher m3 = p3.matcher(comp);
+			while (m3.find()) {
+				if (x.contains(m3.group(1) + "" + m3.group(2) + "" + m3.group(3))){
+					int ind = x.indexOf(m3.group(1) + "" + m3.group(2)+ "" + m3.group(3));
+					Integer add = y.get(ind);
+					y.set(ind, add + Integer.parseInt(m3.group(4)));
+				}
+				else {
+					x.add(m3.group(1) + "" + m3.group(2) + "" + m3.group(3));
+					y.add(Integer.parseInt(m3.group(4)));
+				}
+			}
+			if (i == 0){
+				for (int j = 0; j < y.size(); j++){
+					m[track][i] = y.get(j);
+					track++;
+					h[count] = x.get(j);
+					count++;
+				}
+			}
+			else
+			{
+				boolean b = false;
+				for (int j = 0; j < x.size(); j++){
+					b = false;
+					for (int k = 0; k < h.length; k++){
+						if (x.get(j).equals(h[k])){
+							m[k][i] = y.get(j);
+							b = true;
+						}
+					}
+					if (!b){
+						m[track][i] = y.get(j);
+						track++;
+						h[count] = x.get(j);
+						count++;
+					}
+				}
+			}
+		}
+	}
+	
+	/* Determine if an equation is a redox equation and add
+	   oxidation/reduction coefficients to coeffs array.
+	*/
+	private boolean configureRedox(ArrayList<String> terms, ArrayList<Double> coeffs) {
+	    boolean isredox = false;
+		for (int i = 0; i < terms.size(); i++){
+			String x = terms.get(i);
+			for (int j = 0; j < x.length(); j++){
+				if (j == x.length() - 1 && x.charAt(j) != ']'){
+					coeffs.add(0.0);
+				}
+				if (x.charAt(j) == '['){
+					isredox = true;
+					int ind = x.indexOf(']');
+					String num = x.substring(j + 1, ind);
+		    		coeffs.add(Double.parseDouble(num));
+					x = x.substring(0, j);
+					break;
+				}
+			}
+			terms.set(i, x);
+		}
+		return isredox;
+	}
+	
+	/* Removes all spaces from input string s. */
+	private String removeSpaces(String s) {
+		StringTokenizer st = new StringTokenizer(s, " ", false);
+		String t = "";
 		while (st.hasMoreElements()) t += st.nextElement();
 		return t;
 	}
-	private static int gcd(int a, int b)
-	{
-		while (b > 0)
-		{
+	
+	/* Computes the greatest common denominator between a and b. */
+	private static int gcd(int a, int b) {
+		while (b > 0) {
 			int temp = b;
 			b = a % b;
 			a = temp;
@@ -506,17 +479,19 @@ public class Balancer extends Activity implements View.OnClickListener {
 		return a;
 	}
 
-	public static int lcm(int a, int b)
-	{
+    /* Computes the least common multiple between integers a and b. */
+	public static int lcm(int a, int b) {
 		return a * (b / gcd(a, b));
 	}
 
-	public static int lcm(int[] input)
-	{
+    /* computes the least common multiple of an array of integers. */
+	public static int lcm(int[] input) {
 		int result = input[0];
 		for(int i = 1; i < input.length; i++) result = lcm(result, input[i]);
 		return result;
 	}
+	
+	/* Returns the denominator of the fraction represented by the input decimal value. */
 	public static int toFraction(double decimal) {
 		int LIMIT = 12;
 		int denominators[] = new int[LIMIT + 1];
@@ -547,7 +522,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 		return denominator;
 	}
 
-	public static void converttoArrayList(String a, ArrayList <String> b){
+    /* Converts each side of a chemical equation to an ArrayList of strings. */
+	public static void converttoArrayList(String a, ArrayList<String> b){
 		int pos = 0;
 		for (int i = 0; i < a.length(); i++){
 			if (i == a.length() - 1){
@@ -561,7 +537,11 @@ public class Balancer extends Activity implements View.OnClickListener {
 			}
 		}
 	}
-	public static void addNums(ArrayList<String>b){
+	
+	/* Configure compounds like NaCl which consist of one ion, by adding subscripts of 1.
+	   e.g. NaCl -> Na1Cl1
+	*/
+	public static void addNums(ArrayList<String> b){
 		for (int i = 0; i < b.size(); i++){
 			String x = b.get(i);
 			for (int j = 0; j < x.length() - 1; j++){
@@ -589,7 +569,9 @@ public class Balancer extends Activity implements View.OnClickListener {
 			b.set(i, x);
 		}
 	}
-	public static void configureParenthesis(ArrayList<String>b){
+	
+	/* Deals with compounds which have polyatomic ions (parentheses). */
+	public static void configureParenthesis(ArrayList<String> b){
 		int oldlength = 0;
 		for (int i = 0; i < b.size(); i++){
 			String x = b.get(i);
@@ -630,6 +612,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 			}
 		}
 	}
+	
+	/* Computes the RREF (reduced row echelon form) of the matrix M through Gaussian row reduction. */
 	public static void toRREF(double[][] M) {
 		int rowCount = M.length;
 		if (rowCount == 0)
@@ -673,6 +657,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 			lead++;
 		}
 	}
+	
+	/* Displays an "About" dialog with the current version of the application. */
 	public void dislayPopup(){
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("About");
@@ -682,6 +668,8 @@ public class Balancer extends Activity implements View.OnClickListener {
 		builder.setIcon(R.drawable.about);
 		builder.create().show();
 	}
+	
+	/* Displays the help menu with detailed information on the functionality of the application. */
 	public void displayHelp(){
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("Help");
@@ -689,10 +677,12 @@ public class Balancer extends Activity implements View.OnClickListener {
 				"like single replacement, double replacement, synthesis, decomposition, combustion, and redox reactions. " +
 				"In order to get your balanced equation, please enter each compound CAPITALIZED and separated" +
 				" by a + sign and an = sign to show the other side. This balancer also supports" +
-				" polyatomic compounds, which can be entered with parentheses ( ). For an equation containing polyatomic ions, if there is only one molecule of the ion, such as in H(NO3), DO NOT insert the parentheses, and instead input HNO3. Redox reactions can be typed" +
+				" polyatomic compounds, which can be entered with parentheses ( ). " + 
+				" For an equation containing polyatomic ions, if there is only one molecule of the ion, such as in H(NO3), DO NOT insert the parentheses, and instead input HNO3. Redox reactions can be typed" +
 				" with brackets, [ ] for the charge of the compound. " +
 				"For a redox equation, make sure that every compound has a bracket with a charge, even if a compound has no charge." + " For entering a positive charge," +
-				" leave off the + sign, but add - for negative charges. For a positive charge, for example, input [2], for a negative charge, [-2], and for a charge of 0, [0]. DO NOT INPUT [+2]. When entering the equation, " +
+				" leave off the + sign, but add - for negative charges. For a positive charge, for example, input [2], for a negative charge, [-2], and for a charge of 0, [0]. " +
+				"DO NOT INPUT [+2]. When entering the equation, " +
 				"make sure that the first letter of each element is capitalized. For example, instead of ca and h, Ca and H should be entered. " +
 				"\n\nThis application operates offline, without the use of the Internet, by solely using mathematical algorithms to find coefficients of compounds." +
 				"\n\nSample equations:" + "\nC6H12O6+O2=CO2+H2O" + "\nH2+O2=H2O" +
@@ -703,12 +693,16 @@ public class Balancer extends Activity implements View.OnClickListener {
 		builder.setIcon(R.drawable.help);
 		builder.create().show();
 	}
+	
+	/* Initialize the menu for the application. */
 	public boolean onCreateOptionsMenu(Menu menu){
 		menu.add(0, MENUABOUT, 0, "About");
 		menu.add(0, MENUHELP, 0, "Help");
 		menu.add(0, MENUQUIT, 0, "Quit");
 		return true;
 	}
+	
+	/* Controls what happens when a menu item is selected. */
 	public boolean onOptionsItemSelected(MenuItem item){
 		switch(item.getItemId()){
 		case MENUABOUT:
@@ -724,3 +718,6 @@ public class Balancer extends Activity implements View.OnClickListener {
 		return false;
 	}
 }
+
+// END OF CODE
+
