@@ -33,7 +33,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-
 public class Balancer extends Activity implements View.OnClickListener {
 	
 	/* Constants for settings and help menus. */
