@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AbsoluteLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent">
+  
+
+
+
+
+
+
+
+<WebView android:layout_x="0dip" android:layout_y="0dip" android:layout_width="match_parent" android:id="@+id/WebViewDiag" android:layout_height="210dip"></WebView>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<Button android:id="@+id/ButtonDiag" android:text="Close" android:layout_height="50dip" android:layout_width="100dip" android:layout_y="220dip" android:layout_x="180dip"></Button>
+</AbsoluteLayout>

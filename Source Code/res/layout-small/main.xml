@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+
+<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:layout_alignParentTop="true" android:id="@+id/TextView02" android:layout_marginBottom="5dip" android:text='Enter an equation below. Make sure elements are capitalized and type = to show the other side. For more instructions, go to "Help" in Menu.'></TextView>
+<TextView android:layout_height="wrap_content" android:layout_below="@+id/TextView02" android:layout_width="wrap_content" android:layout_alignLeft="@+id/TextView02" android:layout_alignRight="@+id/TextView02" android:id="@+id/TextView03" android:text="Sample Equation: C6H12O6+O2=CO2+H2O" android:layout_marginBottom="5dip"></TextView>
+<EditText android:id="@+id/EditText01" android:layout_height="wrap_content" android:layout_below="@+id/TextView03" android:layout_width="wrap_content" android:layout_alignLeft="@+id/TextView03" android:layout_alignRight="@+id/TextView03" android:layout_marginBottom="10dip"></EditText>
+<Button android:layout_height="wrap_content" android:text="Balance" android:layout_marginLeft="50dip" android:id="@+id/Button01" android:layout_width="wrap_content" android:layout_below="@+id/EditText01" android:layout_alignLeft="@+id/EditText01"></Button><TextView android:layout_height="wrap_content" android:id="@+id/TextView01" android:layout_width="wrap_content" android:layout_below="@+id/Button01" android:layout_centerHorizontal="true" android:layout_marginTop="5dip" android:layout_marginBottom="5dip"></TextView>
+<WebView android:layout_below="@+id/TextView01" android:id="@+id/WebView01" android:layout_alignLeft="@+id/TextView01" android:layout_alignRight="@+id/TextView01" android:layout_width="match_parent" android:layout_height="match_parent" android:layout_alignParentLeft="true" android:layout_alignParentRight="true"></WebView><Button android:layout_height="wrap_content" android:layout_below="@+id/EditText01" android:layout_width="wrap_content" android:id="@+id/Button02" android:layout_alignRight="@+id/EditText01" android:text="Clear" android:paddingLeft="20dip" android:paddingRight="20dip" android:layout_marginRight="50dip"></Button>
+
+
+
+
+
+
+
+
+</RelativeLayout>
